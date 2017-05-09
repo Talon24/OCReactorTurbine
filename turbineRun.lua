@@ -105,49 +105,9 @@ function runReacturbine (Optimum)
 	print("Beginne Betrieb")
 	--GuiMake()
 	while true do
-		if tur.getRotorSpeed() < 1780
-		then
-			tur.setFluidFlowRateMax(1500)
-			if tur.getInductorEngaged()
-			then tur.setInductorEngaged(false)
-			end
-		end
 
-		if (tur.getRotorSpeed() >= 1780 and not tur.getInductorEngaged())
-		then tur.setInductorEngaged(true)
-		end
-
-		if tur.getInductorEngaged()
-		then
-			if tur.getRotorSpeed() > 1805
-			then tur.setFluidFlowRateMax(Optimum - 1)
-			end
-
-			if tur.getRotorSpeed() < 1795
-			then tur.setFluidFlowRateMax(Optimum + 1)
-			end
-		end
-
-		local tmp = react.getCasingTemperature()
-		if (tmp < 200) --and not timer
-		then react.setAllControlRodLevels(react.getControlRodLevel(0) - 10/ round(react.getNumberOfControlRods()))
-		os.sleep(0.5)
-		elseif (tmp < 250)
-		then react.setAllControlRodLevels(react.getControlRodLevel(0) - 5 / round(react.getNumberOfControlRods()))
-		os.sleep(0.5)
-		elseif (tmp < 260)
-		then react.setAllControlRodLevels(react.getControlRodLevel(0) - 1)
-		os.sleep(0.5)
-		elseif tmp > 350 --and not timer
-		then react.setAllControlRodLevels(react.getControlRodLevel(0) + 10/ round(react.getNumberOfControlRods()))
-		os.sleep(0.5)
-		elseif tmp > 300 --and not timer
-		then react.setAllControlRodLevels(react.getControlRodLevel(0) + 5 / round(react.getNumberOfControlRods()))
-		os.sleep(0.5)
-		elseif tmp > 290 --and not timer
-		then react.setAllControlRodLevels(react.getControlRodLevel(0) + 1)
-		os.sleep(0.5)
-		end
+		AdjustTurbineSpeed()
+		AdjustControlRods()
 
 		if rs.getInput(sides.west) > 10		--terminator
 		then
@@ -155,6 +115,53 @@ function runReacturbine (Optimum)
 		end
 
 		GuiUpdate()
+	end
+end
+
+function AdjustTurbineSpeed()
+	if tur.getRotorSpeed() < 1780 -- Zu langsam ?
+	then
+		tur.setFluidFlowRateMax(1500)
+		tur.setInductorEngaged(false)
+	end
+
+	if (tur.getRotorSpeed() >= 1780 and not tur.getInductorEngaged())
+	then
+		tur.setInductorEngaged(true)
+	end
+
+	if tur.getInductorEngaged()
+	then
+		if tur.getRotorSpeed() > 1805
+			then tur.setFluidFlowRateMax(Optimum - 1)
+		end
+
+		if tur.getRotorSpeed() < 1795
+			then tur.setFluidFlowRateMax(Optimum + 1)
+		end
+	end
+end
+
+function AdjustControlRods()
+	local tmp = react.getCasingTemperature()
+	if (tmp < 200) --and not timer
+	then react.setAllControlRodLevels(react.getControlRodLevel(0) - 10/ round(react.getNumberOfControlRods()))
+	os.sleep(0.5)
+	elseif (tmp < 250)
+	then react.setAllControlRodLevels(react.getControlRodLevel(0) - 5 / round(react.getNumberOfControlRods()))
+	os.sleep(0.5)
+	elseif (tmp < 260)
+	then react.setAllControlRodLevels(react.getControlRodLevel(0) - 1)
+	os.sleep(0.5)
+	elseif tmp > 350 --and not timer
+	then react.setAllControlRodLevels(react.getControlRodLevel(0) + 10/ round(react.getNumberOfControlRods()))
+	os.sleep(0.5)
+	elseif tmp > 300 --and not timer
+	then react.setAllControlRodLevels(react.getControlRodLevel(0) + 5 / round(react.getNumberOfControlRods()))
+	os.sleep(0.5)
+	elseif tmp > 290 --and not timer
+	then react.setAllControlRodLevels(react.getControlRodLevel(0) + 1)
+	os.sleep(0.5)
 	end
 end
 
