@@ -77,7 +77,7 @@ function FindIdeal ()
 	Turbine1800()
 	tur.setInductorEngaged(true)
 	react.setAllControlRodLevels(20)
-	print("Turbine erfolgreich hochgefahren!")
+	print("Turbine erfolgreich hochgefahren!\nMessung Beginnt...")
 	local SpeedBegin = tur.getRotorSpeed()
 	local SpeedEnd = 999999
 	local Delta = 0.1
@@ -101,21 +101,25 @@ function FindIdeal ()
 	return Rotation
 end
 
-function runReacturbine (Optimum)
+function runReacturbine ()
 	print("Beginne Betrieb")
 	--GuiMake()
-	while true do
+	--while running do
 
-		AdjustTurbineSpeed()
-		AdjustControlRods()
+		--AdjustTurbineSpeed()
+		Speed = event.timer(0.1, AdjustTurbineSpeed, math.huge)
+		--AdjustControlRods()
+		Rods = event.timer(0.5, AdjustControlRods, math.huge)
 
-		if rs.getInput(sides.west) > 10		--terminator
-		then
-			gracefulEnd()
-		end
+		Reds = event.listen("redstone_changed", RSInput)
+		--if rs.getInput(sides.west) > 10		--terminator
+		--then
+		--	gracefulEnd()
+		--end
 
-		GuiUpdate()
-	end
+		Update = event.timer(0.5, GuiUpdate, math.huge)
+		--GuiUpdate()
+	--end
 end
 
 function AdjustTurbineSpeed()
@@ -167,6 +171,11 @@ end
 
 function gracefulEnd()
 	print("Programm beendet")
+	event.cancel(Speed)
+	event.cancel(Rods)
+	event.cancel(Reds)
+	event.cancel(Update)
+	running = false
 	tur.setActive(false)
 	tur.setInductorEngaged(false)
 	react.setActive(false)
@@ -176,6 +185,12 @@ function gracefulEnd()
 	os.exit()
 end
 
+function RSInput()
+	if rs.getInput(sides.west) > 10		--terminator
+	then
+		gracefulEnd()
+	end
+end
 
 function UnTimer()
 	print("Timer Ende")
@@ -243,7 +258,7 @@ function GuiUpdate()
 	--Bremsstabanzeige
 	gpu.setBackground(0x25004a)
 	term.setCursor(3, 38)
-	print("Bremsstab Status: " .. StatusRod*100)
+	print("Bremsstab Status: " .. StatusRod*100 .. "% ")
 	gpu.setBackground(0xffffff)
 	gpu.fill(2,40,98,5, " ")
 	gpu.setBackground(0x25004a)
@@ -261,7 +276,7 @@ end
 
 --506
 
-function listen(name,address,x,y,button,player)
+function listen(name,address,x,y,button,player) --Quit button TODO
 	component.computer.beep()
 	if between(89,x,100,48,y,50) then
 		gracefulEnd()
@@ -283,7 +298,6 @@ end
 
 
 event.listen("touch",listen)
-												print("Touch")
 GuiMake()
 term.setCursor(1,3)
 gpu.setResolution(100,50)
@@ -294,4 +308,4 @@ react.setActive(true)
 
 Optimum = FindIdeal()
 
-runReacturbine(Optimum)
+runReacturbine()
