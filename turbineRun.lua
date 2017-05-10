@@ -1,3 +1,4 @@
+-- Locals
 local fs 			= require("filesystem")
 local term 			= require("term")
 local serialization = require("serialization")
@@ -11,14 +12,15 @@ local math		= require 'math'
 local rs	= component.redstone
 local tur 	= component.br_turbine
 local react = component.br_reactor
-local fs	= filesystem
-local gpu = component.gpu
+local gpu 	= component.gpu
+--local fs	= filesystem
 local config = {}
 local reactor = nil
 local running = true
 local screen = "main"
 local Optimum
 local Timer = false
+local Pause = false
 
 function Turbine1800 ()
 	local Goal = 1800.0
@@ -103,23 +105,13 @@ end
 
 function runReacturbine ()
 	print("Beginne Betrieb")
-	--GuiMake()
-	--while running do
 
-		--AdjustTurbineSpeed()
-		Speed = event.timer(0.1, AdjustTurbineSpeed, math.huge)
-		--AdjustControlRods()
-		Rods = event.timer(0.5, AdjustControlRods, math.huge)
+	Speed = event.timer(0.1, AdjustTurbineSpeed, math.huge)
+	Rods = event.timer(0.5, AdjustControlRods, math.huge)
 
-		Reds = event.listen("redstone_changed", RSInput)
-		--if rs.getInput(sides.west) > 10		--terminator
-		--then
-		--	gracefulEnd()
-		--end
+	Reds = event.listen("redstone_changed", RSInput)
 
-		Update = event.timer(0.5, GuiUpdate, math.huge)
-		--GuiUpdate()
-	--end
+	Update = event.timer(0.1, GuiUpdate, math.huge)
 end
 
 function AdjustTurbineSpeed()
@@ -169,19 +161,41 @@ function AdjustControlRods()
 	end
 end
 
+function pause()
+	if Pause then
+		tur.setActive(true)
+		react.setActive(true)
+		Turbine1800()
+		tur.setFluidFlowRateMax(Optimum)
+		tur.setInductorEngaged(true)
+		Speed = event.timer(0.1, AdjustTurbineSpeed, math.huge)
+		Rods = event.timer(0.5, AdjustControlRods, math.huge)
+		Pause = false
+		print("Betrieb wird fortgesetzt.")
+	else
+		event.cancel(Speed)
+		event.cancel(Rods)
+		tur.setActive(false)
+		react.setActive(false)
+		tur.setInductorEngaged(false)
+		Pause = true
+		print("Betrieb ist angehalten.")
+	end
+end
+
 function gracefulEnd()
 	print("Programm beendet")
 	event.cancel(Speed)
 	event.cancel(Rods)
 	event.cancel(Reds)
 	event.cancel(Update)
+	event.ignore("touch",listen)
 	running = false
 	tur.setActive(false)
 	tur.setInductorEngaged(false)
 	react.setActive(false)
 	term.setCursor(1,49)
 	gpu.setBackground(0x000000)
-	event.ignore("touch",listen)
 	os.exit()
 end
 
@@ -203,6 +217,10 @@ function GuiMake()
 	gpu.fill(1,1,100,1, " ")
 	gpu.setBackground(0x25004a)
 	gpu.fill(1,2,100, 49, " ")
+	gpu.setBackground(0x000099)
+	gpu.fill(1,48,12, 3, " ")
+	term.setCursor(4,49)
+	print("Pause")
 	gpu.setBackground(0x990000)
 	gpu.fill(89,48,12, 3, " ")
 	term.setCursor(93,49)
@@ -210,8 +228,6 @@ function GuiMake()
 	gpu.setBackground(0x000000)
 	term.setCursor(1,50)
 end
-
-
 
 function GuiHeadUpdate()
 	local StatusTur
@@ -276,10 +292,12 @@ end
 
 --506
 
-function listen(name,address,x,y,button,player) --Quit button TODO
+function listen(name,address,x,y,button,player) --Buttons
 	component.computer.beep()
 	if between(89,x,100,48,y,50) then
 		gracefulEnd()
+	elseif between(1,x,13,48,y,50) then
+		pause()
 	end
 end
 
@@ -297,7 +315,7 @@ function round2(T, numDecimalPlaces)
 end
 
 
-event.listen("touch",listen)
+Touch = event.listen("touch",listen)
 GuiMake()
 term.setCursor(1,3)
 gpu.setResolution(100,50)
