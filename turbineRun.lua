@@ -4,6 +4,7 @@ local term 			= require("term")
 local serialization = require("serialization")
 local event 		= require("event")
 local colors 		= require("colors")
+local shell			= require("shell")
 
 local component = require 'component'
 local os 		= require 'os'
@@ -71,7 +72,7 @@ function Turbine1800 ()
 	term.setCursor(x,y)
 end
 
-function FindIdeal ()
+function Startup ()
 	gpu.setBackground(0x25004a)
 	print("Turbine hochfahren...")
 	react.setAllControlRodLevels(0)
@@ -79,7 +80,13 @@ function FindIdeal ()
 	Turbine1800()
 	tur.setInductorEngaged(true)
 	react.setAllControlRodLevels(20)
-	print("Turbine erfolgreich hochgefahren!\nMessung Beginnt...")
+	print("Turbine erfolgreich hochgefahren!")
+end
+
+function FindIdeal ()
+	gpu.setBackground(0x25004a)
+	Startup()
+	print("Messung Beginnt...")
 	local SpeedBegin = tur.getRotorSpeed()
 	local SpeedEnd = 999999
 	local Delta = 0.1
@@ -316,6 +323,10 @@ end
 
 
 Touch = event.listen("touch",listen)
+local Args, Opts = shell.parse(...)
+
+
+
 GuiMake()
 term.setCursor(1,3)
 gpu.setResolution(100,50)
@@ -324,6 +335,10 @@ LadeDatei()
 tur.setActive(true)
 react.setActive(true)
 
-Optimum = FindIdeal()
+if Opts["nofind"] then
+	Optimum = LoadOptimum
+	Startup() else
+	Optimum = FindIdeal()
+end
 
 runReacturbine()
