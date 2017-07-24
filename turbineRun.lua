@@ -22,8 +22,38 @@ local screen = "main"
 local Optimum
 local Timer = false
 local Pause = false
+local nofind = false
 
-function Turbine1800 ()
+local Turbs  = component.list("turbine")
+local Reacts = component.list("reactor")
+
+function tablelength(T)
+  local count = 0
+  for _ in pairs(T) do count = count + 1 end
+  return count
+end
+
+function toIndexTable(T)
+	local i=0
+	Tab = {}
+	for address in T do
+		Tab[i] = address
+		i=i+1
+	end
+	return Tab
+end
+
+local NumT = tablelength(Turbs)
+local NumR = tablelength(Reacts)
+
+local TabT = toIndexTable(Turbs)
+local TabR = toIndexTable(Reacts)
+
+local SpeedTimers = {}
+
+
+
+function Turbine1800 (tur)
 	local Goal = 1800.0
 	local variance = 0.1
 	local Percentage
@@ -34,6 +64,7 @@ function Turbine1800 ()
 	term.setCursor(10, 33)
 	print("Richte Turbine aus...")
 
+	react.setAllControlRodLevels(0)
 	while tur.getRotorSpeed() < (Goal-variance) or tur.getRotorSpeed() > (Goal+variance) do
 		if tur.getRotorSpeed() < (Goal-variance-100) then
 			tur.setFluidFlowRateMax(2000)
@@ -41,11 +72,11 @@ function Turbine1800 ()
 		elseif tur.getRotorSpeed() < (Goal-variance) then
 			tur.setFluidFlowRateMax(1000)
 			tur.setInductorEngaged(false)
-		elseif tur.getRotorSpeed() > (Goal+variance) then
-			tur.setFluidFlowRateMax(200) --Anpassen an Coil Material
-			tur.setInductorEngaged(true)
 		elseif tur.getRotorSpeed() > (Goal+variance+100) then
 			tur.setFluidFlowRateMax(0)
+			tur.setInductorEngaged(true)
+		elseif tur.getRotorSpeed() > (Goal+variance) then
+			tur.setFluidFlowRateMax(200) --Anpassen an Coil Material
 			tur.setInductorEngaged(true)
 		elseif tur.getRotorSpeed() > 2000 then
 			tur.setFluidFlowRateMax(0)
@@ -73,14 +104,23 @@ function Turbine1800 ()
 end
 
 function Startup ()
-	gpu.setBackground(0x25004a)
-	print("Turbine hochfahren...")
-	react.setAllControlRodLevels(0)
-	tur.setInductorEngaged(false)
-	Turbine1800()
-	tur.setInductorEngaged(true)
-	react.setAllControlRodLevels(20)
-	print("Turbine erfolgreich hochgefahren!")
+	counter = 1
+	for address in Turbs do
+		local tur = component.proxy(address)
+		tur.setActive(true)
+		gpu.setBackground(0x25004a)
+		print("Turbine ".. counter .." hochfahren...")
+		react.setAllControlRodLevels(0)
+		tur.setInductorEngaged(false)
+		Turbine1800(tur)
+		tur.setInductorEngaged(true)
+		react.setAllControlRodLevels(20)
+		print("Turbine " .. counter .. " erfolgreich hochgefahren!")
+		counter = counter+1
+		if nofind then
+			tur.setFluidFlowRateMax(Optimum)
+		end
+	end
 end
 
 function FindIdeal ()
@@ -94,7 +134,7 @@ function FindIdeal ()
 	local precision = false
 
 	while not precision and (math.abs(SpeedEnd - SpeedBegin) > Delta) do
-		Turbine1800()
+		Turbine1800(tur)
 		SpeedBegin = tur.getRotorSpeed()
 		tur.setFluidFlowRateMax(Rotation)
 		os.sleep(20)
@@ -113,7 +153,13 @@ end
 function runReacturbine ()
 	print("Beginne Betrieb")
 
-	Speed = event.timer(0.1, AdjustTurbineSpeed, math.huge)
+	local i=1
+	for address in Turbs do
+		SpeedTimers[i] = event.timer(0.1, function() AdjustTurbineSpeed(address) end, math.huge)
+		i=i+1
+	end
+	--Speed = event.timer(0.1, AdjustTurbineSpeed, math.huge) --Auszulagern
+
 	Rods = event.timer(0.5, AdjustControlRods, math.huge)
 
 	Reds = event.listen("redstone_changed", RSInput)
@@ -121,7 +167,7 @@ function runReacturbine ()
 	Update = event.timer(0.1, GuiUpdate, math.huge)
 end
 
-function AdjustTurbineSpeed()
+function AdjustTurbineSpeed(tur)
 	if tur.getRotorSpeed() < 1780 -- Zu langsam ?
 	then
 		tur.setFluidFlowRateMax(1500)
@@ -170,21 +216,35 @@ end
 
 function pause()
 	if Pause then
-		tur.setActive(true)
 		react.setActive(true)
-		Turbine1800()
-		tur.setFluidFlowRateMax(Optimum)
-		tur.setInductorEngaged(true)
-		Speed = event.timer(0.1, AdjustTurbineSpeed, math.huge)
+		react.setAllControlRodLevels(0)
+		for address in Turbs do
+			local tur = component.proxy(address)
+			tur.setActive(true)
+			Turbine1800(tur)
+			tur.setFluidFlowRateMax(Optimum) tur.setInductorEngaged(true)
+		end
+		local i=1
+		for address in Turbs do
+			SpeedTimers[i] = event.timer(0.1, function() AdjustTurbineSpeed(address) end, math.huge)
+			i=i+1
+		end
+		--Speed = event.timer(0.1, AdjustTurbineSpeed, math.huge)
 		Rods = event.timer(0.5, AdjustControlRods, math.huge)
 		Pause = false
 		print("Betrieb wird fortgesetzt.")
 	else
-		event.cancel(Speed)
+		local i=1
+		for address in Turbs do
+			local tur = component.proxy(address)
+			event.cancel(SpeedTimers[i])
+			tur.setActive(false)
+			tur.setInductorEngaged(false)
+			i=i+1
+		end
+		--event.cancel(Speed)
 		event.cancel(Rods)
-		tur.setActive(false)
 		react.setActive(false)
-		tur.setInductorEngaged(false)
 		Pause = true
 		print("Betrieb ist angehalten.")
 	end
@@ -192,14 +252,20 @@ end
 
 function gracefulEnd()
 	print("Programm beendet")
-	event.cancel(Speed)
+	for i=1,NumT do
+		event.cancel(SpeedTimers[i])
+	end
+	--event.cancel(Speed)
 	event.cancel(Rods)
 	event.cancel(Reds)
 	event.cancel(Update)
 	event.ignore("touch",listen)
 	running = false
-	tur.setActive(false)
-	tur.setInductorEngaged(false)
+	for address in Turbs do
+		local tur = component.proxy(address)
+		tur.setActive(false)
+		tur.setInductorEngaged(false)
+	end
 	react.setActive(false)
 	term.setCursor(1,49)
 	gpu.setBackground(0x000000)
@@ -332,10 +398,10 @@ term.setCursor(1,3)
 gpu.setResolution(100,50)
 LadeDatei()
 
-tur.setActive(true)
 react.setActive(true)
 
 if Opts["nofind"] then
+	nofind = true
 	Optimum = LoadOptimum
 	Startup() else
 	Optimum = FindIdeal()
